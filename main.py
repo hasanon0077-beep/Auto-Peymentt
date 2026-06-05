@@ -9,7 +9,7 @@ import asyncio
 app = Flask(__name__)
 BOT_TOKEN = os.environ.get("8344824887:AAEaVw4dj8A_v_RadPY_pb6U-rNwUAkZFqU")
 API_KEY = os.environ.get("YH6iIiq4AFTPT9UgXmvyEOs9amczOL84unCKB5bkjYdOS6qOTO")
-DOMAIN = os.environ.get("DOMAIN")
+DOMAIN = os.environ.get("auto-peymentt-production.up.railway.app")
 
 bot = Bot(token=BOT_TOKEN)
 
