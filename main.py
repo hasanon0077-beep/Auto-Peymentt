@@ -1,31 +1,27 @@
 import os
 import requests
 from flask import Flask, request, jsonify
-from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler
-import threading
-import asyncio
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
 app = Flask(__name__)
-BOT_TOKEN = os.environ.get("8344824887:AAEaVw4dj8A_v_RadPY_pb6U-rNwUAkZFqU")
-API_KEY = os.environ.get("YH6iIiq4AFTPT9UgXmvyEOs9amczOL84unCKB5bkjYdOS6qOTO")
-DOMAIN = os.environ.get("auto-peymentt-production.up.railway.app")
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+API_KEY = os.environ.get("API_KEY")
+DOMAIN = os.environ.get("DOMAIN")
 
-bot = Bot(token=BOT_TOKEN)
-
-@app.route('/payment-status')
-def status():
-    return "<h1>পেমেন্ট সফল!</h1>"
-
+# ওয়েবুক হ্যান্ডলার
 @app.route('/webhook', methods=['POST'])
 def webhook():
     data = request.json
     if data.get("status") == "success":
         user_id = data.get("metadata", {}).get("user_id")
-        asyncio.run(bot.send_message(chat_id=user_id, text="✅ পেমেন্ট সফল! ব্যালেন্স অ্যাড করা হয়েছে।"))
+        # ব্যালেন্স অ্যাড করার পর বটের মাধ্যমে মেসেজ পাঠানোর জন্য 
+        # এখানে সরাসরি গ্লোবাল অ্যাপ্লিকেশনটি দরকার, যা নিচে সেটআপ করা হয়েছে
+        print(f"Payment Success for User: {user_id}")
     return jsonify({"status": "success"}), 200
 
-async def start(update, context):
+# বট কমান্ড
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     payload = {
         "success_url": f"{DOMAIN}/payment-status",
         "cancel_url": f"{DOMAIN}/payment-status",
@@ -36,15 +32,20 @@ async def start(update, context):
     headers = {'API-KEY': API_KEY, 'Content-Type': 'application/json'}
     res = requests.post("https://secure-pay.nagorikpay.com/api/payment/create", json=payload, headers=headers)
     data = res.json()
+    
     if "payment_url" in data:
         keyboard = [[InlineKeyboardButton("Pay 50 BDT", url=data['payment_url'])]]
         await update.message.reply_text("নিচের বাটনে ক্লিক করে পেমেন্ট করুন:", reply_markup=InlineKeyboardMarkup(keyboard))
-
-def run_bot():
-    app_bot = ApplicationBuilder().token(BOT_TOKEN).build()
-    app_bot.add_handler(CommandHandler("start", start))
-    app_bot.run_polling()
+    else:
+        await update.message.reply_text("পেমেন্ট লিংক তৈরি হয়নি।")
 
 if __name__ == '__main__':
-    threading.Thread(target=run_bot).start()
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8080)))
+    # বট অ্যাপ্লিকেশন তৈরি
+    application = ApplicationBuilder().token(BOT_TOKEN).build()
+    application.add_handler(CommandHandler("start", start))
+    
+    # রেলওয়েতে পোর্ট ৮০০০ বা ৮০৮০ এর মাধ্যমে ফ্লাস্ক রান করা
+    port = int(os.environ.get("PORT", 8080))
+    
+    # অ্যাপটি রানিং রাখা
+    application.run_polling()
